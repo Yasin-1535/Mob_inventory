@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+!.env.example
+!.env.sample
+backend/.env
+frontend/.env
+
+# Build
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+logs/
+
+# Runtime
+*.pid
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+tmp/
+temp/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets & Certificates
+*.pem
+*.key
+*.crt
+
+# Generated files
+.cache/
+.parcel-cache/
