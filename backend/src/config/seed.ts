@@ -17,10 +17,25 @@ import { VendorRequest } from '../models/VendorRequest';
 
 export const seedDatabase = async () => {
   try {
+    if (mongoose.connection.readyState === 2) {
+      await new Promise<void>((resolve) => {
+        let attempts = 0;
+        const check = () => {
+          attempts++;
+          if (mongoose.connection.readyState === 1 || attempts > 25) {
+            resolve();
+          } else {
+            setTimeout(check, 200);
+          }
+        };
+        check();
+      });
+    }
     if (mongoose.connection.readyState !== 1) {
       console.log('ℹ️ MongoDB is not connected – skipping database seeding.');
       return;
     }
+
     const userCount = await User.countDocuments();
     if (userCount > 0) {
       return; // Already seeded

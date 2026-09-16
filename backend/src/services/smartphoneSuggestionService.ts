@@ -1,6 +1,10 @@
-import dotenv from 'dotenv';
+import { env } from '../config/env';
 
-dotenv.config();
+// Active smartphone suggestion provider (default: internal 'catalog_provider')
+const ACTIVE_PROVIDER = env.SMARTPHONE_SUGGESTION_PROVIDER || 'catalog_provider';
+// Optional API key for external provider integrations if configured
+const SUGGESTION_API_KEY = env.SMARTPHONE_SUGGESTION_API_KEY;
+
 
 export interface NormalizedSuggestion {
   name: string;

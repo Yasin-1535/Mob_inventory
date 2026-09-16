@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 import { connectDB } from './config/database';
 import { seedDatabase } from './config/seed';
 
@@ -12,27 +13,65 @@ import orderRoutes from './routes/order.routes';
 import reportRoutes from './routes/report.routes';
 import saleRoutes from './routes/sale.routes';
 
-dotenv.config();
-dotenv.config({ path: __dirname + '/../.env' });
-dotenv.config({ path: __dirname + '/../../.env' });
+import { env, validateEnv } from './config/env';
+
+// Validate critical environment configurations without leaking secrets
+validateEnv();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
+const PORT = env.PORT;
+const configuredOrigins = env.CORS_ORIGIN
+  .split(',')
+  .map((origin) => origin.trim());
 
-// Validate critical environment configurations
-if (!process.env.JWT_SECRET) {
-  console.warn('⚠️ WARNING: JWT_SECRET environment variable is not defined.');
-  console.warn('⚠️ Please configure JWT_SECRET in your backend/.env file.');
-}
-if (!process.env.MONGODB_URI) {
-  console.info('ℹ️ MONGODB_URI not configured. Operating in development mode with fallback store.');
-}
 
-app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
+// Configure CORS for both local development and Vercel deployments
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, same-origin Vercel Services rewrites)
+      if (!origin) return callback(null, true);
+
+      // Check against explicit allowed origins or wildcard
+      if (configuredOrigins.includes('*') || configuredOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow Vercel production and preview deployment URLs
+      if (origin.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+
+      // Allow local development origins
+      if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(null, false);
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-// Health check route
+// Ensure database connection in serverless / cloud environments
+app.use(async (req, res, next) => {
+  if ((process.env.MONGODB_URI || env.MONGODB_URI) && mongoose.connection.readyState !== 1) {
+    try {
+      await connectDB();
+    } catch (err) {
+      console.error('Database connection middleware error:', err);
+    }
+  }
+  next();
+});
+
+// Base API info & Health check routes
+app.get('/api', (req, res) => {
+  res.json({ success: true, message: 'Smart Inventory API', status: 'active' });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Smart Inventory API is running' });
 });
@@ -46,13 +85,24 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/reports', reportRoutes);
 
-// Connect to MongoDB, seed sample data if needed, and start server
-connectDB().then(async () => {
-  await seedDatabase();
-  app.listen(PORT, () => {
-    console.log('-------------------------------------------');
-    console.log('🚀 Smart Inventory API Server Active');
-    console.log(`📡 Listening on: http://localhost:${PORT}/api`);
-    console.log('-------------------------------------------');
-  });
-});
+// For local standalone development, connect to MongoDB, seed sample data, and start server
+if (process.env.VERCEL !== '1') {
+  connectDB()
+    .then(async () => {
+      await seedDatabase();
+      app.listen(PORT, () => {
+        console.log('-------------------------------------------');
+        console.log('🚀 Smart Inventory API Server Active');
+        console.log(`📡 Listening on: http://localhost:${PORT}/api`);
+        console.log('-------------------------------------------');
+      });
+    })
+    .catch((err) => {
+      console.error('Server startup error:', err);
+    });
+}
+
+// Export the Express application for Vercel Functions / Services
+export default app;
+export { app };
+
