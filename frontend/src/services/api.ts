@@ -15,7 +15,9 @@ api.interceptors.request.use((config) => {
   try {
     const token =
       localStorage.getItem('smart_inventory_token') ||
-      sessionStorage.getItem('smart_inventory_token');
+      sessionStorage.getItem('smart_inventory_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('authToken');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }

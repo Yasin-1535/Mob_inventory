@@ -24,6 +24,7 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
+import api from '../../services/api';
 import { useStore, SaleRecord } from '../../context/StoreContext';
 import {
   PageHeader,
@@ -264,40 +265,30 @@ export const SalesManagement: React.FC = () => {
 
     // Sync with backend API if logged in
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-      if (token) {
-        await fetch('http://localhost:5000/api/sales', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            buyerType,
-            vendorId: buyerType === 'VENDOR' ? selectedVendor?.id : undefined,
-            vendorName: buyerType === 'VENDOR' ? finalPartyName : undefined,
-            customerName: finalPartyName,
-            customerPhone: finalPartyPhone,
-            items: cartLines.map((line) => {
-              const prod = products.find((p) => p.sku === line.sku);
-              return {
-                productId: prod?.id,
-                productName: prod?.name || line.sku,
-                sku: line.sku,
-                quantity: line.quantity,
-                unitPrice: line.unitPrice,
-              };
-            }),
-            discountAmount: Number(discountAmount) || 0,
-            taxAmount: Number(taxAmount) || 0,
-            totalAmount: cartTotalAmount,
-            paymentMethod,
-            paymentStatus,
-            saleStatus: 'COMPLETED',
-            notes: saleNotes,
-          }),
-        });
-      }
+      await api.post('/sales', {
+        buyerType,
+        vendorId: buyerType === 'VENDOR' ? selectedVendor?.id : undefined,
+        vendorName: buyerType === 'VENDOR' ? finalPartyName : undefined,
+        customerName: finalPartyName,
+        customerPhone: finalPartyPhone,
+        items: cartLines.map((line) => {
+          const prod = products.find((p) => p.sku === line.sku);
+          return {
+            productId: prod?.id,
+            productName: prod?.name || line.sku,
+            sku: line.sku,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+          };
+        }),
+        discountAmount: Number(discountAmount) || 0,
+        taxAmount: Number(taxAmount) || 0,
+        totalAmount: cartTotalAmount,
+        paymentMethod,
+        paymentStatus,
+        saleStatus: 'COMPLETED',
+        notes: saleNotes,
+      });
     } catch {}
 
     setSuccessInvoiceNum(res.invoice.invoiceNumber);
