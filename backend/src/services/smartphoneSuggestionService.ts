@@ -18,6 +18,7 @@ export interface SuggestionQueryParams {
   query: string;
   brand?: string;
   mobileType?: string;
+  limit?: number;
 }
 
 // In-Memory Query Cache with TTL
@@ -46,7 +47,7 @@ const CATALOG_DATA: CatalogBrandEntry[] = [
     brand: 'POCO',
     brandId: 'poco',
     parentBrand: 'Xiaomi',
-    aliases: ['poco', 'xiaomi poco'],
+    aliases: ['poco'],
     models: [
       { model: 'X7 5G', fullName: 'POCO X7 5G', series: 'X' },
       { model: 'X7 Pro 5G', fullName: 'POCO X7 Pro 5G', series: 'X' },
@@ -72,7 +73,7 @@ const CATALOG_DATA: CatalogBrandEntry[] = [
     brand: 'Redmi',
     brandId: 'redmi',
     parentBrand: 'Xiaomi',
-    aliases: ['redmi', 'xiaomi redmi'],
+    aliases: ['redmi'],
     models: [
       { model: 'Note 14 Pro+ 5G', fullName: 'Redmi Note 14 Pro+ 5G', series: 'Note' },
       { model: 'Note 14 Pro 5G', fullName: 'Redmi Note 14 Pro 5G', series: 'Note' },
@@ -108,7 +109,7 @@ const CATALOG_DATA: CatalogBrandEntry[] = [
   {
     brand: 'Samsung',
     brandId: 'samsung',
-    aliases: ['samsung', 'galaxy', 'smsg'],
+    aliases: ['samsung', 'galaxy'],
     models: [
       { model: 'Galaxy S25 Ultra', fullName: 'Samsung Galaxy S25 Ultra', series: 'Galaxy S' },
       { model: 'Galaxy S25+', fullName: 'Samsung Galaxy S25+', series: 'Galaxy S' },
@@ -251,18 +252,31 @@ const CATALOG_DATA: CatalogBrandEntry[] = [
     brandId: 'apple',
     aliases: ['apple', 'iphone', 'ios'],
     models: [
-      { model: 'iPhone 16', fullName: 'Apple iPhone 16', series: 'iPhone 16' },
-      { model: 'iPhone 16 Plus', fullName: 'Apple iPhone 16 Plus', series: 'iPhone 16' },
-      { model: 'iPhone 16 Pro', fullName: 'Apple iPhone 16 Pro', series: 'iPhone 16' },
-      { model: 'iPhone 16 Pro Max', fullName: 'Apple iPhone 16 Pro Max', series: 'iPhone 16' },
-      { model: 'iPhone 15', fullName: 'Apple iPhone 15', series: 'iPhone 15' },
-      { model: 'iPhone 15 Plus', fullName: 'Apple iPhone 15 Plus', series: 'iPhone 15' },
-      { model: 'iPhone 15 Pro', fullName: 'Apple iPhone 15 Pro', series: 'iPhone 15' },
-      { model: 'iPhone 15 Pro Max', fullName: 'Apple iPhone 15 Pro Max', series: 'iPhone 15' },
-      { model: 'iPhone 14', fullName: 'Apple iPhone 14', series: 'iPhone 14' },
-      { model: 'iPhone 14 Plus', fullName: 'Apple iPhone 14 Plus', series: 'iPhone 14' },
-      { model: 'iPhone 13', fullName: 'Apple iPhone 13', series: 'iPhone 13' },
-      { model: 'iPhone SE (3rd Gen)', fullName: 'Apple iPhone SE (3rd Gen)', series: 'iPhone SE' },
+      { model: 'iPhone 16 128GB', fullName: 'iPhone 16 128GB', series: 'iPhone 16' },
+      { model: 'iPhone 16 Pro', fullName: 'iPhone 16 Pro', series: 'iPhone 16' },
+      { model: 'iPhone 16 Pro Max', fullName: 'iPhone 16 Pro Max', series: 'iPhone 16' },
+      { model: 'iPhone 16', fullName: 'iPhone 16', series: 'iPhone 16' },
+      { model: 'iPhone 16 Plus', fullName: 'iPhone 16 Plus', series: 'iPhone 16' },
+      { model: 'iPhone 15', fullName: 'iPhone 15', series: 'iPhone 15' },
+      { model: 'iPhone 15 Plus', fullName: 'iPhone 15 Plus', series: 'iPhone 15' },
+      { model: 'iPhone 15 Pro', fullName: 'iPhone 15 Pro', series: 'iPhone 15' },
+      { model: 'iPhone 15 Pro Max', fullName: 'iPhone 15 Pro Max', series: 'iPhone 15' },
+      { model: 'iPhone 14 Pro Max', fullName: 'iPhone 14 Pro Max', series: 'iPhone 14' },
+      { model: 'iPhone 14 Pro', fullName: 'iPhone 14 Pro', series: 'iPhone 14' },
+      { model: 'iPhone 14 Plus', fullName: 'iPhone 14 Plus', series: 'iPhone 14' },
+      { model: 'iPhone 14', fullName: 'iPhone 14', series: 'iPhone 14' },
+      { model: 'iPhone 13 Pro Max', fullName: 'iPhone 13 Pro Max', series: 'iPhone 13' },
+      { model: 'iPhone 13 Pro', fullName: 'iPhone 13 Pro', series: 'iPhone 13' },
+      { model: 'iPhone 13 Mini', fullName: 'iPhone 13 Mini', series: 'iPhone 13' },
+      { model: 'iPhone 13', fullName: 'iPhone 13', series: 'iPhone 13' },
+      { model: 'iPhone 12 Pro Max', fullName: 'iPhone 12 Pro Max', series: 'iPhone 12' },
+      { model: 'iPhone 12 Pro', fullName: 'iPhone 12 Pro', series: 'iPhone 12' },
+      { model: 'iPhone 12 Mini', fullName: 'iPhone 12 Mini', series: 'iPhone 12' },
+      { model: 'iPhone 12', fullName: 'iPhone 12', series: 'iPhone 12' },
+      { model: 'iPhone 11 Pro Max', fullName: 'iPhone 11 Pro Max', series: 'iPhone 11' },
+      { model: 'iPhone 11 Pro', fullName: 'iPhone 11 Pro', series: 'iPhone 11' },
+      { model: 'iPhone 11', fullName: 'iPhone 11', series: 'iPhone 11' },
+      { model: 'iPhone SE (3rd Gen)', fullName: 'iPhone SE (3rd Gen)', series: 'iPhone SE' },
     ],
   },
   {
@@ -329,19 +343,26 @@ const CATALOG_DATA: CatalogBrandEntry[] = [
     ],
   },
   {
-    brand: 'Oppo',
+    brand: 'OPPO',
     brandId: 'oppo',
-    aliases: ['oppo', 'reno', 'oppo find', 'oppo f'],
+    aliases: ['oppo'],
     models: [
-      { model: 'Find X8 Pro', fullName: 'Oppo Find X8 Pro', series: 'Find' },
-      { model: 'Find X8', fullName: 'Oppo Find X8', series: 'Find' },
-      { model: 'Reno 12 Pro 5G', fullName: 'Oppo Reno 12 Pro 5G', series: 'Reno' },
-      { model: 'Reno 12 5G', fullName: 'Oppo Reno 12 5G', series: 'Reno' },
-      { model: 'F27 Pro+ 5G', fullName: 'Oppo F27 Pro+ 5G', series: 'F' },
-      { model: 'F27 5G', fullName: 'Oppo F27 5G', series: 'F' },
-      { model: 'A3 Pro 5G', fullName: 'Oppo A3 Pro 5G', series: 'A' },
-      { model: 'A3x 5G', fullName: 'Oppo A3x 5G', series: 'A' },
-      { model: 'K12x 5G', fullName: 'Oppo K12x 5G', series: 'K' },
+      { model: 'Find X8 Pro', fullName: 'OPPO Find X8 Pro', series: 'Find' },
+      { model: 'Find X8', fullName: 'OPPO Find X8', series: 'Find' },
+      { model: 'Find N3 Flip', fullName: 'OPPO Find N3 Flip', series: 'Find' },
+      { model: 'Reno 12 Pro 5G', fullName: 'OPPO Reno 12 Pro 5G', series: 'Reno' },
+      { model: 'Reno 12 5G', fullName: 'OPPO Reno 12 5G', series: 'Reno' },
+      { model: 'Reno 11 Pro 5G', fullName: 'OPPO Reno 11 Pro 5G', series: 'Reno' },
+      { model: 'Reno 11 5G', fullName: 'OPPO Reno 11 5G', series: 'Reno' },
+      { model: 'F27 Pro+ 5G', fullName: 'OPPO F27 Pro+ 5G', series: 'F' },
+      { model: 'F27 5G', fullName: 'OPPO F27 5G', series: 'F' },
+      { model: 'F25 Pro 5G', fullName: 'OPPO F25 Pro 5G', series: 'F' },
+      { model: 'A3 Pro 5G', fullName: 'OPPO A3 Pro 5G', series: 'A' },
+      { model: 'A3x 5G', fullName: 'OPPO A3x 5G', series: 'A' },
+      { model: 'A79 5G', fullName: 'OPPO A79 5G', series: 'A' },
+      { model: 'A59 5G', fullName: 'OPPO A59 5G', series: 'A' },
+      { model: 'A18', fullName: 'OPPO A18', series: 'A' },
+      { model: 'K12x 5G', fullName: 'OPPO K12x 5G', series: 'K' },
     ],
   },
 ];
@@ -354,12 +375,13 @@ export async function getSmartphoneSuggestions(
   params: SuggestionQueryParams
 ): Promise<NormalizedSuggestion[]> {
   const query = (params.query || '').trim().toLowerCase();
-  if (!query || query.length < 2) {
+  if (!query) {
     return [];
   }
 
   const brandParam = (params.brand || '').trim().toLowerCase();
-  const cacheKey = `${query}::${brandParam}::${params.mobileType || ''}`;
+  const limitParam = params.limit ? String(params.limit) : 'all';
+  const cacheKey = `${query}::${brandParam}::${params.mobileType || ''}::${limitParam}`;
 
   // 1. Check Cache
   const cached = suggestionCache.get(cacheKey);
@@ -377,6 +399,8 @@ export async function getSmartphoneSuggestions(
     brandParam !== 'secondhand mobiles' &&
     brandParam !== 'mobiles';
 
+  const queryWords = query.split(/\s+/).filter(Boolean);
+
   CATALOG_DATA.forEach((brandEntry) => {
     const brandName = brandEntry.brand;
     const brandId = brandEntry.brandId;
@@ -384,16 +408,12 @@ export async function getSmartphoneSuggestions(
     const parentBrand = brandEntry.parentBrand ? brandEntry.parentBrand.toLowerCase() : '';
     const aliases = brandEntry.aliases;
 
-    // Filter by brand if selected
-    if (isBrandFilterActive) {
-      const matchesSelectedBrand =
-        normBrandName === brandParam ||
+    const isBrandFilterMatch =
+      isBrandFilterActive &&
+      (normBrandName === brandParam ||
         brandId === brandParam ||
         parentBrand === brandParam ||
-        aliases.includes(brandParam);
-
-      if (!matchesSelectedBrand) return;
-    }
+        aliases.includes(brandParam));
 
     const isBrandExactMatch = normBrandName === query || brandId === query;
     const isBrandStartsWith = normBrandName.startsWith(query) || brandId.startsWith(query);
@@ -402,7 +422,7 @@ export async function getSmartphoneSuggestions(
     );
 
     brandEntry.models.forEach(({ model, fullName, series }) => {
-      const displayName = fullName || (normBrandName === 'apple' || normBrandName === 'google' ? `${brandName} ${model}` : `${brandName} ${model}`);
+      const displayName = fullName || (normBrandName === 'apple' ? model : `${brandName} ${model}`);
       const normDisplayName = displayName.toLowerCase();
       const normModel = model.toLowerCase();
       const normSeries = series ? series.toLowerCase() : '';
@@ -412,29 +432,32 @@ export async function getSmartphoneSuggestions(
       let score = 0;
 
       const modelStartsWith = normModel.startsWith(query) || normDisplayName.startsWith(query);
+      const words = normDisplayName.split(/\s+/);
+      const isWordPrefixMatch = words.some((w) => w.startsWith(query)) || normModel.split(/\s+/).some((w) => w.startsWith(query));
       const modelContains = normModel.includes(query) || normDisplayName.includes(query);
       const seriesContains = normSeries && normSeries.includes(query);
 
-      // Check sub-brand queries e.g. "galaxy s", "realme narzo", "vivo v", "iqoo neo", "moto g"
-      const combinedQueryMatch =
-        (query.includes('galaxy') && normDisplayName.includes('galaxy')) ||
-        (query.includes('narzo') && normDisplayName.includes('narzo')) ||
-        (query.includes('nord') && normDisplayName.includes('nord')) ||
-        (query.includes('pixel') && normDisplayName.includes('pixel')) ||
-        (query.includes('iphone') && normDisplayName.includes('iphone')) ||
-        (query.includes('note') && normDisplayName.includes('note')) ||
-        (query.includes('moto') && normDisplayName.includes('moto'));
+      const allWords = Array.from(new Set([...words, ...normModel.split(/\s+/) ]));
+      const allQueryWordsMatch =
+        queryWords.length > 1 &&
+        queryWords.every((qw) => allWords.some((w) => w.startsWith(qw) || w.includes(qw)));
 
-      if (combinedQueryMatch && modelContains) {
-        score = 110;
+      if (normModel === query || normDisplayName === query) {
+        score = 150;
+      } else if (normModel.startsWith(query)) {
+        score = 140;
+      } else if (normDisplayName.startsWith(query)) {
+        score = 130;
+      } else if (allQueryWordsMatch) {
+        score = 125;
+      } else if (isWordPrefixMatch) {
+        score = 115;
       } else if (isBrandExactMatch) {
         score = 100;
       } else if (isBrandStartsWith) {
-        score = 90;
+        score = 95;
       } else if (isAliasMatch && (modelContains || seriesContains)) {
         score = 85;
-      } else if (modelStartsWith) {
-        score = 80;
       } else if (modelContains) {
         score = 65;
       } else if (seriesContains) {
@@ -444,6 +467,10 @@ export async function getSmartphoneSuggestions(
       }
 
       if (score > 0) {
+        if (isBrandFilterMatch) {
+          score += 30;
+        }
+
         seenNames.add(normDisplayName);
         results.push({
           item: {
@@ -462,10 +489,15 @@ export async function getSmartphoneSuggestions(
   // Sort by score descending then alphabetically
   results.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
+    if (a.item.name.length !== b.item.name.length) {
+      return a.item.name.length - b.item.name.length;
+    }
     return a.item.name.localeCompare(b.item.name);
   });
 
-  const finalSuggestions = results.slice(0, 8).map((r) => r.item);
+  const finalSuggestions = (
+    params.limit && params.limit > 0 ? results.slice(0, params.limit) : results
+  ).map((r) => r.item);
 
   // 3. Cache & Return
   suggestionCache.set(cacheKey, {

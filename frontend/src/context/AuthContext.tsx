@@ -14,7 +14,7 @@ interface AuthContextType {
   user: AuthUser | null;
   role: UserRole | null;
   loading: boolean;
-  login: (identifier: string, password: string, role: UserRole) => Promise<void>;
+  login: (identifier: string, password: string, role?: UserRole) => Promise<void>;
   registerCustomer: (data: {
     name: string;
     email: string;
@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const login = async (identifier: string, password: string, role: UserRole) => {
+  const login = async (identifier: string, password: string, role: UserRole = 'ADMIN') => {
     setLoading(true);
     try {
       const newSession = await mockLogin(identifier, password, role);

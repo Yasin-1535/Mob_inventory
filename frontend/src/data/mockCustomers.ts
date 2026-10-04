@@ -6,6 +6,7 @@ export interface Customer {
   totalOrders: number;
   totalSpent: number;
   lastOrderDate: string;
+  joinedDate?: string;
   status: 'Active' | 'Inactive';
 }
 

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { Product } from '../models/Product';
 import { authenticateJWT, requireRole, AuthenticatedRequest } from '../middleware/auth';
 import { getProductSuggestions } from '../controllers/productSuggestionController';
+import { safeRegex } from '../utils/sanitize';
 
 const router = Router();
 
@@ -36,12 +37,12 @@ router.get('/my-products', authenticateJWT, requireRole(['VENDOR', 'ADMIN']), as
     if (status && status !== 'All') filter.status = status;
     if (search) {
       const searchMatch = [
-        { name: { $regex: search, $options: 'i' } },
-        { sku: { $regex: search, $options: 'i' } },
-        { category: { $regex: search, $options: 'i' } },
-        { brand: { $regex: search, $options: 'i' } },
-        { accessoryCategory: { $regex: search, $options: 'i' } },
-        { productType: { $regex: search, $options: 'i' } },
+        { name: safeRegex(search as string) },
+        { sku: safeRegex(search as string) },
+        { category: safeRegex(search as string) },
+        { brand: safeRegex(search as string) },
+        { accessoryCategory: safeRegex(search as string) },
+        { productType: safeRegex(search as string) },
       ];
       filter.$and = filter.$and || [];
       filter.$and.push({ $or: searchMatch });
@@ -83,12 +84,12 @@ router.get('/', async (req: Request, res: Response) => {
     }
     if (search) {
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { sku: { $regex: search, $options: 'i' } },
-        { category: { $regex: search, $options: 'i' } },
-        { brand: { $regex: search, $options: 'i' } },
-        { accessoryCategory: { $regex: search, $options: 'i' } },
-        { productType: { $regex: search, $options: 'i' } },
+        { name: safeRegex(search as string) },
+        { sku: safeRegex(search as string) },
+        { category: safeRegex(search as string) },
+        { brand: safeRegex(search as string) },
+        { accessoryCategory: safeRegex(search as string) },
+        { productType: safeRegex(search as string) },
       ];
     }
 

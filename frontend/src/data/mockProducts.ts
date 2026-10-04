@@ -12,10 +12,14 @@ export interface Product {
   costPrice?: number;
   supplierCost?: number;
   stock: number;
+  inspectionStock?: number;
+  damagedStock?: number;
+  discardedStock?: number;
   minStockAlert?: number;
   lowStockThreshold?: number;
   status: 'In Stock' | 'Low Stock' | 'Out of Stock';
   vendor: string;
+  supplier?: string;
   image?: string;
   description?: string;
 }
@@ -157,6 +161,91 @@ export const mockProducts: Product[] = [
     status: 'In Stock',
     vendor: 'ABC Electronics',
     description: 'Dimensity 8300-Ultra chip with 120Hz Flow AMOLED display and 67W Turbo Charge.',
+  },
+  {
+    id: 'prod-sp-s24',
+    name: 'Samsung Galaxy S24',
+    sku: 'SAM-S24-001',
+    category: 'Mobiles',
+    mobileType: 'Smartphone',
+    brand: 'Samsung',
+    price: 74999,
+    costPrice: 62000,
+    supplierCost: 62000,
+    stock: 18,
+    minStockAlert: 5,
+    lowStockThreshold: 5,
+    status: 'In Stock',
+    vendor: 'ABC Electronics',
+    description: 'Dynamic AMOLED 2X, Galaxy AI features, Snapdragon 8 Gen 3.',
+  },
+  {
+    id: 'prod-sp-s25',
+    name: 'Samsung Galaxy S25',
+    sku: 'SAM-S25-001',
+    category: 'Mobiles',
+    mobileType: 'Smartphone',
+    brand: 'Samsung',
+    price: 82999,
+    costPrice: 69000,
+    supplierCost: 69000,
+    stock: 12,
+    minStockAlert: 5,
+    lowStockThreshold: 5,
+    status: 'In Stock',
+    vendor: 'ABC Electronics',
+    description: 'Next-generation Galaxy AI, enhanced battery life, refined Armor Aluminum frame.',
+  },
+  {
+    id: 'prod-sp-a15',
+    name: 'Samsung Galaxy A15',
+    sku: 'SAM-A15-001',
+    category: 'Mobiles',
+    mobileType: 'Smartphone',
+    brand: 'Samsung',
+    price: 17999,
+    costPrice: 14200,
+    supplierCost: 14200,
+    stock: 30,
+    minStockAlert: 8,
+    lowStockThreshold: 8,
+    status: 'In Stock',
+    vendor: 'TechSupply Hub',
+    description: 'Super AMOLED 90Hz display, 50MP triple camera, 5000mAh battery.',
+  },
+  {
+    id: 'prod-sp-poc-x7',
+    name: 'POCO X7 5G',
+    sku: 'POC-X7-001',
+    category: 'Mobiles',
+    mobileType: 'Smartphone',
+    brand: 'POCO',
+    price: 19999,
+    costPrice: 15500,
+    supplierCost: 15500,
+    stock: 25,
+    minStockAlert: 8,
+    lowStockThreshold: 8,
+    status: 'In Stock',
+    vendor: 'ABC Electronics',
+    description: '120Hz AMOLED, Dimensity 7300 Ultra, 5000mAh battery with 45W charging.',
+  },
+  {
+    id: 'prod-sp-red-n14p',
+    name: 'Redmi Note 14 Pro+ 5G',
+    sku: 'RDM-N14P-001',
+    category: 'Mobiles',
+    mobileType: 'Smartphone',
+    brand: 'Redmi',
+    price: 30999,
+    costPrice: 24500,
+    supplierCost: 24500,
+    stock: 20,
+    minStockAlert: 6,
+    lowStockThreshold: 6,
+    status: 'In Stock',
+    vendor: 'ABC Electronics',
+    description: 'Curved AMOLED 1.5K display, 50MP Light Hunter 800 OIS camera, 6200mAh battery.',
   },
   {
     id: 'prod-sp-09',

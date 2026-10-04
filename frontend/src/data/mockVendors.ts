@@ -1,6 +1,7 @@
 export interface Vendor {
   id: string;
   name: string;
+  company?: string;
   contactPerson: string;
   email: string;
   phone: string;

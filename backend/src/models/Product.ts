@@ -13,6 +13,9 @@ export interface IProduct extends Document {
   costPrice: number;
   supplierCost?: number;
   stock: number;
+  inspectionStock?: number;
+  damagedStock?: number;
+  discardedStock?: number;
   minStockAlert: number;
   lowStockThreshold?: number;
   vendor: string;
@@ -46,6 +49,9 @@ const ProductSchema = new Schema<IProduct>(
     costPrice: { type: Number, required: true, min: 0, default: 0 },
     supplierCost: { type: Number, min: 0, default: 0 },
     stock: { type: Number, required: true, min: 0, default: 0 },
+    inspectionStock: { type: Number, min: 0, default: 0 },
+    damagedStock: { type: Number, min: 0, default: 0 },
+    discardedStock: { type: Number, min: 0, default: 0 },
     minStockAlert: { type: Number, required: true, min: 0, default: 10 },
     lowStockThreshold: { type: Number, min: 0, default: 10 },
     vendor: { type: String, required: true, trim: true },

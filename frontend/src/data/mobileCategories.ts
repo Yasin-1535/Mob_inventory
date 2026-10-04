@@ -30,6 +30,27 @@ export const mobileCategories = {
       logoText: 'AAPL',
     },
     {
+      id: 'samsung',
+      name: 'Samsung',
+      description: 'Smartphones & Galaxy Devices',
+      mobileType: 'Smartphone' as const,
+      logoText: 'SMSG',
+    },
+    {
+      id: 'redmi',
+      name: 'Redmi',
+      description: 'Smartphones & Note Series',
+      mobileType: 'Smartphone' as const,
+      logoText: 'RDMI',
+    },
+    {
+      id: 'xiaomi',
+      name: 'Xiaomi',
+      description: 'Flagship Smartphones',
+      mobileType: 'Smartphone' as const,
+      logoText: 'MI',
+    },
+    {
       id: 'google',
       name: 'Google',
       description: 'Smartphones',
@@ -112,6 +133,13 @@ export const mobileCategories = {
       description: 'Smartphones',
       mobileType: 'Smartphone' as const,
       logoText: 'HNR',
+    },
+    {
+      id: 'oppo',
+      name: 'OPPO',
+      description: 'Smartphones',
+      mobileType: 'Smartphone' as const,
+      logoText: 'OPPO',
     },
   ],
 

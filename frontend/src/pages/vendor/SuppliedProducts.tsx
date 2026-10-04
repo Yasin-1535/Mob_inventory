@@ -666,6 +666,7 @@ export const SuppliedProducts: React.FC = () => {
                             'Infinix',
                             'Tecno',
                             'Honor',
+                            'OPPO',
                           ].map((b) => (
                             <option key={b} value={b}>
                               {b}

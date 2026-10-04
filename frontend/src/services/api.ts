@@ -11,5 +11,19 @@ const api = axios.create({
   withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+  try {
+    const token =
+      localStorage.getItem('smart_inventory_token') ||
+      sessionStorage.getItem('smart_inventory_token');
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    // Ignore storage read error
+  }
+  return config;
+});
+
 export default api;
 

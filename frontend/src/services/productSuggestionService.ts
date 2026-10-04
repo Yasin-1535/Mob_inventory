@@ -8,6 +8,7 @@ export interface FetchSuggestionsParams {
   q: string;
   brand?: string;
   mobileType?: string;
+  limit?: number;
 }
 
 export interface BackendSuggestionItem {
@@ -36,6 +37,7 @@ export async function fetchProductSuggestions(
         q: query,
         brand: params.brand || '',
         mobileType: params.mobileType || '',
+        limit: params.limit,
       },
       timeout: 2500, // 2.5s fast timeout
     });
@@ -52,17 +54,18 @@ export async function fetchProductSuggestions(
           matchedBy: 'model',
         }));
 
-        return { suggestions: normalized.slice(0, 8), source: 'api' };
+        const finalItems = params.limit && params.limit > 0 ? normalized.slice(0, params.limit) : normalized;
+        return { suggestions: finalItems, source: 'api' };
       }
     }
 
     // Fallback to local catalog if API returns no items
-    const localItems = getLocalSuggestions(query, params.brand, params.mobileType);
+    const localItems = getLocalSuggestions(query, params.brand, params.mobileType, params.limit);
     return { suggestions: localItems, source: 'local_fallback' };
   } catch (error) {
     console.warn('Backend suggestion API unavailable – using local catalog fallback.', error);
     // Graceful offline/error fallback
-    const localItems = getLocalSuggestions(query, params.brand, params.mobileType);
+    const localItems = getLocalSuggestions(query, params.brand, params.mobileType, params.limit);
     return { suggestions: localItems, source: 'local_fallback' };
   }
 }

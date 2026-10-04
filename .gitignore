@@ -17,6 +17,8 @@ frontend/.env
 dist/
 build/
 coverage/
+.vercel/
+**/.vercel/
 
 # Logs
 *.log

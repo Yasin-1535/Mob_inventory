@@ -12,6 +12,10 @@ import vendorRoutes from './routes/vendor.routes';
 import orderRoutes from './routes/order.routes';
 import reportRoutes from './routes/report.routes';
 import saleRoutes from './routes/sale.routes';
+import purchaseRoutes from './routes/purchase.routes';
+import returnRoutes from './routes/return.routes';
+import expenseRoutes from './routes/expense.routes';
+import paymentRoutes from './routes/payment.routes';
 
 import { env, validateEnv } from './config/env';
 
@@ -83,6 +87,10 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/sales', saleRoutes);
+app.use('/api/purchases', purchaseRoutes);
+app.use('/api/returns', returnRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
 
 // For local standalone development, connect to MongoDB, seed sample data, and start server

@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Smartphone, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import { SmartphoneSuggestion } from '../data/smartphoneProductCatalog';
-import { fetchProductSuggestions } from '../services/productSuggestionService';
+import {
+  searchProductSuggestions,
+  ProductAutocompleteSuggestion,
+} from '../services/productSearchService';
+import { useOptionalStore } from '../context/StoreContext';
 
 interface SmartphoneAutocompleteInputProps {
   value: string;
@@ -26,64 +30,35 @@ export const SmartphoneAutocompleteInput: React.FC<SmartphoneAutocompleteInputPr
   disabled = false,
   className = '',
 }) => {
+  const store = useOptionalStore();
+  const availableProducts = store?.products || [];
+
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<SmartphoneSuggestion[]>([]);
-  const [suggestionSource, setSuggestionSource] = useState<'api' | 'local_fallback'>('api');
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const containerRef = useRef<HTMLDivElement>(null);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const isMobileProduct = category === 'Mobiles';
 
-  // Debounced API & Fallback suggestion calculation
-  useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
+  // Calculate suggestions across the entire canonical catalog & inventory without artificial limits
+  const suggestions = useMemo(() => {
+    const trimmed = (value || '').trim();
+    if (!isMobileProduct || !trimmed || disabled) {
+      return [];
     }
 
-    const trimmed = value.trim();
-
-    if (!isMobileProduct || !trimmed || trimmed.length < 2 || disabled) {
-      setSuggestions([]);
-      setIsLoading(false);
-      setIsOpen(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setIsOpen(true);
-
-    debounceTimerRef.current = setTimeout(async () => {
-      try {
-        const result = await fetchProductSuggestions({
-          q: trimmed,
-          brand: selectedBrand,
-          mobileType: mobileClassification,
-        });
-
-        setSuggestions(result.suggestions);
-        setSuggestionSource(result.source);
-        setSelectedIndex(-1);
-        setIsOpen(result.suggestions.length > 0);
-      } catch (err) {
-        console.error('Failed fetching product suggestions', err);
-        setSuggestions([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 350); // 350ms debounce
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [value, selectedBrand, mobileClassification, isMobileProduct, disabled]);
+    return searchProductSuggestions({
+      query: trimmed,
+      products: availableProducts,
+      brand: selectedBrand,
+      category: mobileClassification,
+    });
+  }, [value, isMobileProduct, disabled, availableProducts, selectedBrand, mobileClassification]);
 
   // Close dropdown on click outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
@@ -92,28 +67,64 @@ export const SmartphoneAutocompleteInput: React.FC<SmartphoneAutocompleteInputPr
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, []);
 
-  const handleSelect = (suggestion: SmartphoneSuggestion) => {
-    onChange(suggestion.formattedName, suggestion);
+  // Reset highlighted index when suggestions change
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [suggestions]);
+
+  // Keep highlighted item visible when navigating via keyboard
+  useEffect(() => {
+    if (selectedIndex >= 0 && listRef.current) {
+      const activeEl = listRef.current.querySelector(
+        `[data-index="${selectedIndex}"]`
+      ) as HTMLElement | null;
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [selectedIndex]);
+
+  const handleSelect = (item: ProductAutocompleteSuggestion) => {
+    const legacySuggestion: SmartphoneSuggestion = {
+      model: item.model,
+      brandName: item.brand,
+      brandId: item.brand.toLowerCase(),
+      formattedName: item.name,
+      matchedBy: 'model',
+    };
+
+    onChange(item.name, legacySuggestion);
     setIsOpen(false);
     setSelectedIndex(-1);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!isOpen || suggestions.length === 0) return;
+    if (!isOpen) {
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && value.trim()) {
+        setIsOpen(true);
+      }
+      return;
+    }
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev + 1) % suggestions.length);
+      if (suggestions.length > 0) {
+        setSelectedIndex((prev) => (prev + 1) % suggestions.length);
+      }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex((prev) =>
-        prev <= 0 ? suggestions.length - 1 : prev - 1
-      );
+      if (suggestions.length > 0) {
+        setSelectedIndex((prev) =>
+          prev <= 0 ? suggestions.length - 1 : prev - 1
+        );
+      }
     } else if (e.key === 'Enter') {
       if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
         e.preventDefault();
@@ -123,6 +134,7 @@ export const SmartphoneAutocompleteInput: React.FC<SmartphoneAutocompleteInputPr
         handleSelect(suggestions[0]);
       }
     } else if (e.key === 'Escape') {
+      e.preventDefault();
       setIsOpen(false);
       setSelectedIndex(-1);
     } else if (e.key === 'Tab') {
@@ -133,6 +145,8 @@ export const SmartphoneAutocompleteInput: React.FC<SmartphoneAutocompleteInputPr
   return (
     <div className="relative w-full" ref={containerRef}>
       <input
+        ref={inputRef}
+        id="product-name-autocomplete-input"
         type="text"
         required={required}
         disabled={disabled}
@@ -140,9 +154,12 @@ export const SmartphoneAutocompleteInput: React.FC<SmartphoneAutocompleteInputPr
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
+          if (isMobileProduct) {
+            setIsOpen(true);
+          }
         }}
         onFocus={() => {
-          if (isMobileProduct && value.trim().length >= 2) {
+          if (isMobileProduct && value.trim()) {
             setIsOpen(true);
           }
         }}
@@ -154,22 +171,19 @@ export const SmartphoneAutocompleteInput: React.FC<SmartphoneAutocompleteInputPr
       />
 
       {/* Autocomplete Dropdown */}
-      {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto divide-y divide-gray-100 animate-in fade-in zoom-in-95 duration-100">
-          {isLoading ? (
-            <div className="px-4 py-3 bg-white text-xs text-gray-500 flex items-center justify-center space-x-2">
-              <Loader2 className="w-4 h-4 animate-spin text-[#1552B3]" />
-              <span>Searching smartphone models…</span>
+      {isOpen && isMobileProduct && value.trim() && (
+        <div
+          ref={listRef}
+          className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-[460px] overflow-y-auto divide-y divide-gray-100 animate-in fade-in zoom-in-95 duration-100 scrollbar-thin scrollbar-thumb-gray-200"
+        >
+          {suggestions.length === 0 ? (
+            <div className="px-4 py-3 text-xs text-gray-500 text-center font-medium">
+              No matching products found
             </div>
           ) : (
             <>
-              <div className="px-3 py-1.5 bg-gray-50/90 border-b border-gray-100 flex items-center justify-between text-[10px] text-gray-500 font-medium">
-                <span>
-                  Suggestions ({suggestions.length}){' '}
-                  <span className="text-gray-400">
-                    {suggestionSource === 'api' ? '• Real-Time Catalog' : '• Catalog'}
-                  </span>
-                </span>
+              <div className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-xs px-3 py-2 flex items-center justify-between text-[10px] text-gray-500 font-medium border-b border-gray-100">
+                <span className="font-semibold text-gray-700">Model Suggestions ({suggestions.length})</span>
                 <span>Use ↑ ↓ & Enter to select</span>
               </div>
 
@@ -177,37 +191,52 @@ export const SmartphoneAutocompleteInput: React.FC<SmartphoneAutocompleteInputPr
                 const isHighlighted = index === selectedIndex;
                 return (
                   <div
-                    key={`${item.brandId}-${item.model}-${index}`}
+                    key={`${item.source}-${item.sku}-${item.name}-${index}`}
+                    data-index={index}
                     onClick={() => handleSelect(item)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleSelect(item);
+                    }}
+                    onTouchEnd={(e) => {
+                      e.preventDefault();
+                      handleSelect(item);
+                    }}
                     onMouseEnter={() => setSelectedIndex(index)}
-                    className={`flex items-center justify-between px-3 py-2 text-xs cursor-pointer select-none transition-colors ${
+                    className={`p-2.5 sm:px-3 sm:py-2.5 flex items-start gap-2.5 cursor-pointer select-none transition-colors ${
                       isHighlighted
-                        ? 'bg-blue-50/90 text-[#1552B3] font-semibold border-l-3 border-[#1552B3]'
+                        ? 'bg-blue-50/90 text-[#1552B3] border-l-3 border-[#1552B3]'
                         : 'hover:bg-gray-50 text-gray-800'
                     }`}
                   >
-                    <div className="flex items-center space-x-2 truncate mr-2">
-                      <div
-                        className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
-                          isHighlighted
-                            ? 'bg-blue-100 text-[#1552B3]'
-                            : 'bg-gray-100 text-gray-500'
-                        }`}
-                      >
-                        <Smartphone className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="truncate">{item.formattedName}</span>
-                    </div>
-
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                        isHighlighted
-                          ? 'bg-blue-200/60 text-[#1552B3]'
-                          : 'bg-gray-100 text-gray-600'
+                    <Search
+                      className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${
+                        isHighlighted ? 'text-[#1552B3]' : 'text-gray-400'
                       }`}
-                    >
-                      {item.brandName}
-                    </span>
+                    />
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="text-xs font-semibold text-gray-900 truncate">
+                          {item.name}
+                        </span>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                            isHighlighted
+                              ? 'bg-blue-200/60 text-[#1552B3]'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {item.brand}
+                        </span>
+                      </div>
+
+                      <div className="mt-0.5">
+                        <span className="text-[11px] text-gray-500 block truncate">
+                          {item.brand} • {item.category || 'Smartphone'} • SKU: {item.sku}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 );
               })}

@@ -17,7 +17,7 @@ export const SMARTPHONE_CATALOG: SmartphoneBrandCatalog[] = [
   {
     brand: 'POCO',
     brandId: 'poco',
-    aliases: ['poco', 'xiaomi poco'],
+    aliases: ['poco'],
     models: [
       'POCO X7 5G',
       'POCO X7 Pro 5G',
@@ -30,6 +30,8 @@ export const SMARTPHONE_CATALOG: SmartphoneBrandCatalog[] = [
       'POCO F6 5G',
       'POCO X6 Pro 5G',
       'POCO X6 5G',
+      'POCO X5 Pro 5G',
+      'POCO F5 5G',
       'POCO M6 Pro 5G',
       'POCO M6 5G',
       'POCO C65',
@@ -41,24 +43,37 @@ export const SMARTPHONE_CATALOG: SmartphoneBrandCatalog[] = [
     brandId: 'apple',
     aliases: ['apple', 'iphone', 'ios'],
     models: [
-      'iPhone 16',
-      'iPhone 16 Plus',
+      'iPhone 16 128GB',
       'iPhone 16 Pro',
       'iPhone 16 Pro Max',
+      'iPhone 16',
+      'iPhone 16 Plus',
       'iPhone 15',
       'iPhone 15 Plus',
       'iPhone 15 Pro',
       'iPhone 15 Pro Max',
       'iPhone 14',
       'iPhone 14 Plus',
+      'iPhone 14 Pro',
+      'iPhone 14 Pro Max',
       'iPhone 13',
+      'iPhone 13 Mini',
+      'iPhone 13 Pro',
+      'iPhone 13 Pro Max',
+      'iPhone 12',
+      'iPhone 12 Mini',
+      'iPhone 12 Pro',
+      'iPhone 12 Pro Max',
+      'iPhone 11',
+      'iPhone 11 Pro',
+      'iPhone 11 Pro Max',
       'iPhone SE (3rd Gen)',
     ],
   },
   {
     brand: 'Samsung',
     brandId: 'samsung',
-    aliases: ['samsung', 'galaxy', 'smsg'],
+    aliases: ['samsung', 'galaxy'],
     models: [
       'Samsung Galaxy S25',
       'Samsung Galaxy S25+',
@@ -251,33 +266,58 @@ export const SMARTPHONE_CATALOG: SmartphoneBrandCatalog[] = [
   {
     brand: 'Xiaomi',
     brandId: 'xiaomi',
-    aliases: ['xiaomi', 'redmi', 'mi'],
+    aliases: ['xiaomi', 'mi'],
     models: [
+      'Xiaomi 15 Ultra',
+      'Xiaomi 15 Pro',
+      'Xiaomi 15',
       'Xiaomi 14 Ultra',
       'Xiaomi 14',
       'Xiaomi 14 Civi',
       'Xiaomi 13 Pro',
-      'Redmi Note 13 Pro+ 5G',
-      'Redmi Note 13 Pro 5G',
-      'Redmi Note 13 5G',
-      'Redmi 13 5G',
-      'Redmi 13C 5G',
+      'Xiaomi MIX Fold 4',
     ],
   },
   {
-    brand: 'Oppo',
-    brandId: 'oppo',
-    aliases: ['oppo', 'reno', 'oppo find', 'oppo f'],
+    brand: 'Redmi',
+    brandId: 'redmi',
+    aliases: ['redmi'],
     models: [
-      'Oppo Find X8 Pro',
-      'Oppo Find X8',
-      'Oppo Reno 12 Pro 5G',
-      'Oppo Reno 12 5G',
-      'Oppo F27 Pro+ 5G',
-      'Oppo F27 5G',
-      'Oppo A3 Pro 5G',
-      'Oppo A3x 5G',
-      'Oppo K12x 5G',
+      'Redmi Note 14 Pro+ 5G',
+      'Redmi Note 14 Pro 5G',
+      'Redmi Note 14 5G',
+      'Redmi Note 13 Pro+ 5G',
+      'Redmi Note 13 Pro 5G',
+      'Redmi Note 13 5G',
+      'Redmi 14C 5G',
+      'Redmi 13 5G',
+      'Redmi 13C 5G',
+      'Redmi A3',
+      'Redmi K70 Ultra',
+      'Redmi K60 Ultra',
+    ],
+  },
+  {
+    brand: 'OPPO',
+    brandId: 'oppo',
+    aliases: ['oppo'],
+    models: [
+      'OPPO Find X8 Pro',
+      'OPPO Find X8',
+      'OPPO Find N3 Flip',
+      'OPPO Reno 12 Pro 5G',
+      'OPPO Reno 12 5G',
+      'OPPO Reno 11 Pro 5G',
+      'OPPO Reno 11 5G',
+      'OPPO F27 Pro+ 5G',
+      'OPPO F27 5G',
+      'OPPO F25 Pro 5G',
+      'OPPO A3 Pro 5G',
+      'OPPO A3x 5G',
+      'OPPO A79 5G',
+      'OPPO A59 5G',
+      'OPPO A18',
+      'OPPO K12x 5G',
     ],
   },
 ];
@@ -293,11 +333,13 @@ export const SMARTPHONE_CATALOG: SmartphoneBrandCatalog[] = [
 export function getSmartphoneSuggestions(
   query: string,
   selectedBrand?: string,
-  mobileClassification?: string
+  mobileClassification?: string,
+  limit?: number
 ): SmartphoneSuggestion[] {
   const normalizedQuery = query.toLowerCase().trim();
   if (!normalizedQuery) return [];
 
+  const queryWords = normalizedQuery.split(/\s+/).filter(Boolean);
   const results: { suggestion: SmartphoneSuggestion; score: number }[] = [];
   const seenModels = new Set<string>();
 
@@ -305,7 +347,7 @@ export function getSmartphoneSuggestions(
     ? selectedBrand.toLowerCase().trim()
     : '';
 
-  // Determine if a specific brand is selected (ignore generic labels like "secondhand mobiles")
+  // Determine if a specific brand is selected
   const isBrandFilterActive =
     normalizedSelectedBrand &&
     normalizedSelectedBrand !== 'secondhand mobiles' &&
@@ -317,27 +359,22 @@ export function getSmartphoneSuggestions(
     const normBrandName = brandName.toLowerCase();
     const aliases = brandItem.aliases || [];
 
-    // If brand filter is active, skip other brands unless selectedBrand matches this brand
-    if (isBrandFilterActive && normBrandName !== normalizedSelectedBrand && brandId !== normalizedSelectedBrand) {
-      return;
-    }
+    const isBrandFilterMatch =
+      isBrandFilterActive &&
+      (normBrandName === normalizedSelectedBrand || brandId === normalizedSelectedBrand);
 
     // Check if query matches brand name or aliases
     const isBrandExactMatch = normBrandName === normalizedQuery;
     const isBrandStartsWith = normBrandName.startsWith(normalizedQuery);
     const isAliasMatch = aliases.some(
-      (alias) => alias === normalizedQuery || alias.startsWith(normalizedQuery) || normalizedQuery.startsWith(alias)
+      (alias) =>
+        alias === normalizedQuery ||
+        alias.startsWith(normalizedQuery) ||
+        normalizedQuery.startsWith(alias)
     );
 
     brandItem.models.forEach((modelRaw) => {
-      // Format model string cleanly (ensure Apple models say "Apple iPhone 16" when displaying full name if needed)
-      let formattedName = modelRaw;
-      if (normBrandName === 'apple' && !modelRaw.toLowerCase().startsWith('apple')) {
-        formattedName = `Apple ${modelRaw}`;
-      } else if (normBrandName === 'google' && !modelRaw.toLowerCase().startsWith('google')) {
-        formattedName = `Google ${modelRaw}`;
-      }
-
+      const formattedName = modelRaw;
       const normModel = modelRaw.toLowerCase();
       const normFormatted = formattedName.toLowerCase();
 
@@ -347,21 +384,37 @@ export function getSmartphoneSuggestions(
       let matchedBy: 'brand' | 'model' | 'both' = 'model';
       let score = 0;
 
-      const modelStartsWith = normModel.startsWith(normalizedQuery) || normFormatted.startsWith(normalizedQuery);
-      const modelContains = normModel.includes(normalizedQuery) || normFormatted.includes(normalizedQuery);
+      const words = normModel.split(/\s+/);
+      const isWordPrefixMatch = words.some((w) => w.startsWith(normalizedQuery));
 
-      if (isBrandExactMatch) {
-        matchedBy = 'brand';
-        score = 100; // Exact brand match show top models
-      } else if (isBrandStartsWith) {
-        matchedBy = 'brand';
-        score = 80;
-      } else if (isAliasMatch && modelContains) {
-        matchedBy = 'both';
-        score = 90;
+      const modelStartsWith = normModel.startsWith(normalizedQuery);
+      const modelContains = normModel.includes(normalizedQuery);
+
+      const allQueryWordsMatch =
+        queryWords.length > 1 &&
+        queryWords.every((qw) => words.some((w) => w.startsWith(qw) || w.includes(qw)));
+
+      if (normModel === normalizedQuery) {
+        matchedBy = 'model';
+        score = 100;
       } else if (modelStartsWith) {
         matchedBy = 'model';
+        score = 90;
+      } else if (allQueryWordsMatch) {
+        matchedBy = 'model';
+        score = 85;
+      } else if (isWordPrefixMatch) {
+        matchedBy = 'model';
+        score = 80;
+      } else if (isBrandExactMatch) {
+        matchedBy = 'brand';
+        score = 75;
+      } else if (isBrandStartsWith) {
+        matchedBy = 'brand';
         score = 70;
+      } else if (isAliasMatch && modelContains) {
+        matchedBy = 'both';
+        score = 65;
       } else if (modelContains) {
         matchedBy = 'model';
         score = 50;
@@ -371,6 +424,11 @@ export function getSmartphoneSuggestions(
       }
 
       if (score > 0) {
+        // Boost score if it matches the selected brand
+        if (isBrandFilterMatch) {
+          score += 20;
+        }
+
         seenModels.add(normFormatted);
         results.push({
           suggestion: {
@@ -386,11 +444,15 @@ export function getSmartphoneSuggestions(
     });
   });
 
-  // Sort by score descending, then alphabetically
+  // Sort by score descending, then length, then alphabetically
   results.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
+    if (a.suggestion.formattedName.length !== b.suggestion.formattedName.length) {
+      return a.suggestion.formattedName.length - b.suggestion.formattedName.length;
+    }
     return a.suggestion.formattedName.localeCompare(b.suggestion.formattedName);
   });
 
-  return results.slice(0, 8).map((r) => r.suggestion);
+  const finalItems = limit && limit > 0 ? results.slice(0, limit) : results;
+  return finalItems.map((r) => r.suggestion);
 }

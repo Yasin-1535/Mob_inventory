@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ShoppingCart,
   Search,
@@ -11,31 +11,45 @@ import {
   Eye,
   X,
   Printer,
+  Calendar,
+  CreditCard,
+  User,
+  Filter,
+  Check,
+  Ban,
+  ArrowRight,
+  History,
 } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import { useStore } from '../../context/StoreContext';
 import { Order } from '../../data/mockOrders';
+import {
+  PageHeader,
+  KpiCard,
+  StatusBadge,
+  StatusSelect,
+  ActionButton,
+  ActionMenu,
+  IconButton,
+  SearchBar,
+  Select,
+  FilterBar,
+  EmptyState,
+  Modal,
+  Tabs,
+  HistoryHierarchy,
+  HistoryEventItem,
+} from '../../components/ui';
 
 export const OrderManagement: React.FC = () => {
-  const { orders, updateOrderStatus } = useStore();
+  const { orders, updateOrderStatus, products } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatusTab, setSelectedStatusTab] = useState<string>('All');
+  const [selectedPaymentFilter, setSelectedPaymentFilter] = useState<string>('All');
+  const [viewMode, setViewMode] = useState<'table' | 'duration'>('table');
   const [activeInvoiceOrder, setActiveInvoiceOrder] = useState<Order | null>(null);
-
-  const filteredOrders = orders.filter((o) => {
-    const matchesSearch =
-      o.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.customerName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      selectedStatusTab === 'All' || o.status === selectedStatusTab;
-    return matchesSearch && matchesStatus;
-  });
-
-  const totalOrders = orders.length;
-  const processingOrders = orders.filter((o) => o.status === 'Processing' || o.status === 'Confirmed').length;
-  const deliveredOrders = orders.filter((o) => o.status === 'Delivered').length;
-  const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
 
   const STATUS_OPTIONS: Order['status'][] = [
     'Confirmed',
@@ -45,282 +59,527 @@ export const OrderManagement: React.FC = () => {
     'Cancelled',
   ];
 
+  const filteredOrders = useMemo(() => {
+    return orders.filter((o) => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        !searchQuery ||
+        o.orderNumber.toLowerCase().includes(q) ||
+        o.customerName.toLowerCase().includes(q) ||
+        o.items.some((i) => i.productName.toLowerCase().includes(q));
+
+      const matchesStatus =
+        selectedStatusTab === 'All' ||
+        o.status.toLowerCase() === selectedStatusTab.toLowerCase();
+
+      const matchesPayment =
+        selectedPaymentFilter === 'All' ||
+        o.paymentMethod.toLowerCase() === selectedPaymentFilter.toLowerCase();
+
+      return matchesSearch && matchesStatus && matchesPayment;
+    });
+  }, [orders, searchQuery, selectedStatusTab, selectedPaymentFilter]);
+
+  // Convert to History Hierarchy events (Task 11 & 15: Year -> Month -> Date -> Events)
+  const historyEvents = useMemo<HistoryEventItem[]>(() => {
+    return filteredOrders.map((o) => ({
+      id: o.id,
+      date: o.date,
+      type: 'ORDER',
+      title: `${o.orderNumber} — ${o.customerName}`,
+      subtitle: o.items.map((i) => `${i.quantity}x ${i.productName}`).join(', '),
+      badgeStatus: o.status,
+      badgeText: o.status,
+      amount: o.totalAmount,
+      reference: o.orderNumber,
+      party: o.customerName,
+      meta: `Payment: ${o.paymentMethod}`,
+    }));
+  }, [filteredOrders]);
+
+  const totalOrders = orders.length;
+  const processingOrders = orders.filter(
+    (o) => o.status === 'Processing' || o.status === 'Confirmed'
+  ).length;
+  const deliveredOrders = orders.filter((o) => o.status === 'Delivered').length;
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+  const handlePrintInvoice = () => {
+    window.print();
+  };
+
+  const getRowActionItems = (order: Order) => {
+    const isDelivered = order.status === 'Delivered';
+    const isCancelled = order.status === 'Cancelled';
+    const isProcessing = order.status === 'Processing' || order.status === 'Confirmed';
+    const isShipped = order.status === 'Shipped';
+
+    return [
+      {
+        label: 'View Order Details',
+        icon: Eye,
+        onClick: () => setSelectedDetailOrder(order),
+      },
+      {
+        label: 'View Tax Invoice',
+        icon: FileText,
+        onClick: () => setActiveInvoiceOrder(order),
+      },
+      {
+        label: 'Mark as Shipped',
+        icon: Truck,
+        disabled: !isProcessing,
+        disabledTooltip: isDelivered ? 'Order already delivered' : 'Can only ship processing orders',
+        onClick: () => updateOrderStatus(order.id, 'Shipped'),
+      },
+      {
+        label: 'Mark as Delivered',
+        icon: CheckCircle2,
+        variant: 'success' as const,
+        disabled: !isShipped,
+        disabledTooltip: isDelivered ? 'Order already delivered' : 'Order must be shipped first',
+        onClick: () => updateOrderStatus(order.id, 'Delivered'),
+      },
+      {
+        label: 'Cancel Order',
+        icon: Ban,
+        variant: 'danger' as const,
+        disabled: isDelivered || isCancelled,
+        disabledTooltip: isDelivered
+          ? 'Cannot cancel a delivered order'
+          : isCancelled
+          ? 'Order is already cancelled'
+          : undefined,
+        onClick: () => {
+          if (window.confirm(`Are you sure you want to cancel order ${order.orderNumber}?`)) {
+            updateOrderStatus(order.id, 'Cancelled');
+          }
+        },
+      },
+    ];
+  };
+
   return (
     <AdminLayout
-      title="Customer Order Fulfillment"
-      subtitle="Track customer shipments, process dispatch workflows, and generate invoices"
+      title="Order Management & Fulfillment"
+      subtitle="Track customer order dispatch stages, delivery progress, order slips, and tax invoices"
     >
       <div className="space-y-6">
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-xl border border-gray-200">
-            <p className="text-xs text-gray-500 font-medium">All-Time Orders</p>
-            <p className="text-xl font-bold text-gray-900 mt-1 font-mono">{totalOrders}</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-200">
-            <p className="text-xs text-gray-500 font-medium">Pending Dispatch</p>
-            <p className="text-xl font-bold text-amber-600 mt-1">{processingOrders}</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-200">
-            <p className="text-xs text-gray-500 font-medium">Fulfilled & Delivered</p>
-            <p className="text-xl font-bold text-emerald-600 mt-1">{deliveredOrders}</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-200">
-            <p className="text-xs text-gray-500 font-medium">Gross Merchandise Value</p>
-            <p className="text-xl font-bold text-[#1552B3] mt-1">₹{totalRevenue.toLocaleString()}</p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            title="Total Orders"
+            value={totalOrders}
+            subtitle="All recorded retail orders"
+            icon={ShoppingCart}
+            colorScheme="blue"
+          />
+          <KpiCard
+            title="Pending Dispatch"
+            value={processingOrders}
+            subtitle="Confirmed & processing items"
+            icon={Clock}
+            colorScheme="amber"
+          />
+          <KpiCard
+            title="Fulfilled & Delivered"
+            value={deliveredOrders}
+            subtitle="Completed customer orders"
+            icon={CheckCircle2}
+            colorScheme="emerald"
+          />
+          <KpiCard
+            title="Gross Merchandise Value"
+            value={`₹${totalRevenue.toLocaleString('en-IN')}`}
+            subtitle="Total value of orders"
+            icon={Package}
+            colorScheme="indigo"
+          />
         </div>
 
-        {/* Filter Bar & Tabs */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by order # or customer name..."
+        {/* Filter Bar */}
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="relative flex-1 min-w-[240px]">
+            <SearchBar
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              onChange={setSearchQuery}
+              enableProductAutocomplete
+              products={products}
+              placeholder="Search by order #, customer, or items..."
+              className="w-full"
             />
           </div>
 
-          <div className="flex items-center space-x-1 overflow-x-auto w-full sm:w-auto">
-            {['All', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map(
-              (status) => (
-                <button
-                  key={status}
-                  onClick={() => setSelectedStatusTab(status)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                    selectedStatusTab === status
-                      ? 'bg-[#1552B3] text-white'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  {status}
-                </button>
-              )
-            )}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+            <select
+              value={selectedPaymentFilter}
+              onChange={(e) => setSelectedPaymentFilter(e.target.value)}
+              className="px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:border-[#1552B3]"
+            >
+              <option value="All">All Payment Methods</option>
+              <option value="UPI">UPI</option>
+              <option value="Cash">Cash</option>
+              <option value="Credit Card">Credit Card</option>
+              <option value="Net Banking">Net Banking</option>
+            </select>
+
+            {/* Duration View Toggle */}
+            <div className="col-span-2 sm:col-span-1 flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+              <button
+                type="button"
+                onClick={() => setViewMode((prev) => (prev === 'duration' ? 'table' : 'duration'))}
+                className={`p-1.5 rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer w-full sm:w-auto ${
+                  viewMode === 'duration' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'
+                }`}
+                title="Duration"
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>Duration</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Orders Table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50/70 border-b border-gray-200 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  <th className="py-3 px-4">Order Ref</th>
-                  <th className="py-3 px-4">Customer</th>
-                  <th className="py-3 px-4">Items Summary</th>
-                  <th className="py-3 px-4">Total Amount</th>
-                  <th className="py-3 px-4">Placed Date</th>
-                  <th className="py-3 px-4">Status Transition</th>
-                  <th className="py-3 px-4 text-right">Invoice</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
-                {filteredOrders.length === 0 ? (
+        {/* Status Tabs */}
+        <div className="flex items-center space-x-1 overflow-x-auto pb-1 border-b border-gray-200 scrollbar-none">
+          {['All', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setSelectedStatusTab(status)}
+              className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+                selectedStatusTab === status
+                  ? 'bg-[#1552B3] text-white shadow-xs'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {status === 'All' ? 'All Orders' : status}
+            </button>
+          ))}
+        </div>
+
+        {/* Orders Content Area */}
+        {filteredOrders.length === 0 ? (
+          <EmptyState
+            icon={ShoppingCart}
+            title="No Orders Found"
+            description="No orders match your filter criteria. Try clearing search keywords or selecting all statuses."
+            actionLabel="Reset Filters"
+            onAction={() => {
+              setSearchQuery('');
+              setSelectedStatusTab('All');
+              setSelectedPaymentFilter('All');
+            }}
+          />
+        ) : viewMode === 'duration' ? (
+          /* DURATION HIERARCHY */
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-xs">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
+              <div>
+                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  Order Duration & History ({filteredOrders.length} records)
+                </h3>
+                <p className="text-[11px] text-gray-500">Organized by Year → Month → Date</p>
+              </div>
+            </div>
+            <HistoryHierarchy
+              events={historyEvents}
+              emptyTitle="No orders in this period"
+              emptySubtitle="Try adjusting your filter or search keywords."
+            />
+          </div>
+        ) : (
+          /* DENSE TABLE VIEW WITH COLOR-CODED STATUS SELECTOR */
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-xs">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Order Records ({filteredOrders.length})
+              </h2>
+              <span className="text-[11px] text-gray-400">
+                Fulfillment status auto-notifies order tracking
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-gray-50/80 text-gray-500 font-semibold border-b border-gray-200">
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-gray-400">
-                      No orders found matching the filter.
-                    </td>
+                    <th className="py-3 px-4">Order Ref & Date</th>
+                    <th className="py-3 px-4">Customer Party</th>
+                    <th className="py-3 px-4">Ordered Items</th>
+                    <th className="py-3 px-4 text-right">Total Amount</th>
+                    <th className="py-3 px-4 text-center">Payment</th>
+                    <th className="py-3 px-4 text-center">Fulfillment Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
-                ) : (
-                  filteredOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50/70 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-gray-900">
-                        {order.orderNumber}
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
+                      <td className="py-3 px-4">
+                        <p className="font-bold text-gray-900 font-mono">{order.orderNumber}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">{order.date}</p>
                       </td>
                       <td className="py-3 px-4">
                         <p className="font-semibold text-gray-900">{order.customerName}</p>
-                        <span className="text-[10px] text-gray-400">
-                          Via {order.paymentMethod}
-                        </span>
+                        <p className="text-[10px] text-gray-400">Retail Client</p>
                       </td>
                       <td className="py-3 px-4">
                         <div className="space-y-0.5">
                           {order.items.slice(0, 2).map((item, idx) => (
-                            <p key={idx} className="text-gray-600 text-[11px]">
-                              {item.quantity}x {item.productName}
+                            <p key={idx} className="text-gray-700 text-[11px]">
+                              <span className="font-bold font-mono">{item.quantity}x</span>{' '}
+                              {item.productName}
                             </p>
                           ))}
                           {order.items.length > 2 && (
                             <p className="text-[10px] text-gray-400 italic">
-                              +{order.items.length - 2} more items
+                              +{order.items.length - 2} additional item(s)
                             </p>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4 font-bold text-gray-900">
-                        ₹{order.totalAmount.toLocaleString()}
+                      <td className="py-3 px-4 text-right font-mono font-bold text-gray-900 text-sm">
+                        ₹{order.totalAmount.toLocaleString('en-IN')}
                       </td>
-                      <td className="py-3 px-4 font-mono text-[11px] text-gray-500">
-                        {order.date}
+                      <td className="py-3 px-4 text-center">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-700">
+                          {order.paymentMethod}
+                        </span>
                       </td>
-                      <td className="py-3 px-4">
-                        <select
+                      {/* COLOR-CODED STATUS SELECTOR */}
+                      <td className="py-3 px-4 text-center">
+                        <StatusSelect
                           value={order.status}
-                          onChange={(e) =>
-                            updateOrderStatus(
-                              order.id,
-                              e.target.value as Order['status']
-                            )
-                          }
-                          className={`text-xs font-semibold rounded-lg px-2.5 py-1 border focus:outline-none ${
-                            order.status === 'Delivered'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : order.status === 'Shipped'
-                              ? 'bg-blue-50 text-[#1552B3] border-blue-200'
-                              : order.status === 'Processing' || order.status === 'Confirmed'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-rose-50 text-rose-700 border-rose-200'
-                          }`}
-                        >
-                          {STATUS_OPTIONS.map((st) => (
-                            <option key={st} value={st}>
-                              {st}
-                            </option>
-                          ))}
-                        </select>
+                          options={STATUS_OPTIONS}
+                          onChange={(newStatus) => updateOrderStatus(order.id, newStatus)}
+                        />
                       </td>
+                      {/* STANDARDIZED ROW ACTIONS: Invoice, Details, More */}
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => setActiveInvoiceOrder(order)}
-                          className="inline-flex items-center space-x-1 px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg text-xs font-medium border border-gray-200 transition-colors"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span>View Invoice</span>
-                        </button>
+                        <div className="flex items-center justify-end space-x-1.5">
+                          <ActionButton
+                            variant="ghost"
+                            size="xs"
+                            icon={Eye}
+                            title="View Order Details"
+                            onClick={() => setSelectedDetailOrder(order)}
+                          >
+                            <span className="hidden xl:inline">Details</span>
+                          </ActionButton>
+                          <ActionButton
+                            variant="outline"
+                            size="xs"
+                            icon={FileText}
+                            title="View Invoice"
+                            onClick={() => setActiveInvoiceOrder(order)}
+                          >
+                            <span className="hidden sm:inline">Invoice</span>
+                          </ActionButton>
+                          <ActionMenu
+                            size="xs"
+                            items={getRowActionItems(order)}
+                            triggerAriaLabel={`Actions for ${order.orderNumber}`}
+                          />
+                        </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* Order Detail Modal */}
+      {selectedDetailOrder && (
+        <Modal
+          isOpen={Boolean(selectedDetailOrder)}
+          onClose={() => setSelectedDetailOrder(null)}
+          title={`Order Details — ${selectedDetailOrder.orderNumber}`}
+          description={`Placed on ${selectedDetailOrder.date} by ${selectedDetailOrder.customerName}`}
+          size="md"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                  Fulfillment Status
+                </span>
+                <div className="mt-1">
+                  <StatusSelect
+                    value={selectedDetailOrder.status}
+                    options={STATUS_OPTIONS}
+                    onChange={(newStatus) => {
+                      updateOrderStatus(selectedDetailOrder.id, newStatus);
+                      setSelectedDetailOrder({ ...selectedDetailOrder, status: newStatus });
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                  Order Total
+                </span>
+                <span className="text-lg font-black text-[#1552B3] font-mono">
+                  ₹{selectedDetailOrder.totalAmount.toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl p-3 bg-white space-y-2">
+              <div className="flex justify-between pb-2 border-b border-slate-100">
+                <span className="text-slate-500">Customer:</span>
+                <span className="font-semibold text-slate-900">{selectedDetailOrder.customerName}</span>
+              </div>
+              <div className="flex justify-between pb-2 border-b border-slate-100">
+                <span className="text-slate-500">Payment Mode:</span>
+                <span className="font-medium text-slate-800">{selectedDetailOrder.paymentMethod}</span>
+              </div>
+              <div className="space-y-1 pt-1">
+                <span className="text-slate-500 block font-semibold">Items List:</span>
+                {selectedDetailOrder.items.map((it, idx) => (
+                  <div key={idx} className="flex justify-between bg-slate-50 p-2 rounded-lg">
+                    <span className="text-slate-800 font-medium">
+                      {it.quantity}x {it.productName}
+                    </span>
+                    <span className="font-mono font-bold text-slate-900">
+                      ₹{(it.quantity * it.price).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+              <ActionButton
+                variant="outline"
+                icon={FileText}
+                onClick={() => {
+                  const target = selectedDetailOrder;
+                  setSelectedDetailOrder(null);
+                  setActiveInvoiceOrder(target);
+                }}
+              >
+                Open Tax Invoice
+              </ActionButton>
+              <ActionButton variant="primary" onClick={() => setSelectedDetailOrder(null)}>
+                Done
+              </ActionButton>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Invoice Modal */}
       {activeInvoiceOrder && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-gray-100">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#1552B3] flex items-center justify-center">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-gray-900">
-                    Official Tax Invoice
-                  </h2>
-                  <p className="text-[10px] text-gray-500 font-mono">
-                    {activeInvoiceOrder.orderNumber}
-                  </p>
-                </div>
+        <Modal
+          isOpen={Boolean(activeInvoiceOrder)}
+          onClose={() => setActiveInvoiceOrder(null)}
+          title="Tax Invoice & Order Receipt"
+          description={`Order #${activeInvoiceOrder.orderNumber} • ${activeInvoiceOrder.date}`}
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs">
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-semibold">
+                  Billed Customer
+                </span>
+                <p className="font-bold text-slate-900 mt-0.5 text-sm">
+                  {activeInvoiceOrder.customerName}
+                </p>
+                <p className="text-slate-500 text-[11px]">
+                  Payment Mode: {activeInvoiceOrder.paymentMethod}
+                </p>
               </div>
-              <button
-                onClick={() => setActiveInvoiceOrder(null)}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="sm:text-right">
+                <span className="text-[10px] text-slate-500 uppercase font-semibold">
+                  Order Status
+                </span>
+                <div className="mt-1 sm:flex sm:justify-end">
+                  <StatusSelect
+                    value={activeInvoiceOrder.status}
+                    options={STATUS_OPTIONS}
+                    onChange={(newStatus) => {
+                      updateOrderStatus(activeInvoiceOrder.id, newStatus);
+                      setActiveInvoiceOrder({ ...activeInvoiceOrder, status: newStatus });
+                    }}
+                  />
+                </div>
+                <p className="text-slate-400 font-mono text-[10px] mt-1">
+                  {activeInvoiceOrder.date}
+                </p>
+              </div>
             </div>
 
-            <div className="py-4 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-xl">
-                <div>
-                  <span className="text-[10px] text-gray-500 uppercase font-semibold">
-                    Billed To
-                  </span>
-                  <p className="font-bold text-gray-900 mt-0.5">
-                    {activeInvoiceOrder.customerName}
-                  </p>
-                  <p className="text-gray-500 text-[11px]">Authorized Customer</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] text-gray-500 uppercase font-semibold">
-                    Order Date
-                  </span>
-                  <p className="font-mono text-gray-900 mt-0.5">
-                    {activeInvoiceOrder.date}
-                  </p>
-                  <span className="px-2 py-0.5 rounded-md bg-blue-100 text-[#1552B3] text-[10px] font-semibold">
-                    {activeInvoiceOrder.status}
-                  </span>
-                </div>
-              </div>
-
-              {/* Items list */}
-              <div className="border border-gray-100 rounded-xl overflow-hidden">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 text-[10px] font-bold text-gray-500 uppercase">
-                    <tr>
-                      <th className="p-2.5">Item</th>
-                      <th className="p-2.5 text-center">Qty</th>
-                      <th className="p-2.5 text-right">Unit Price</th>
-                      <th className="p-2.5 text-right">Subtotal</th>
+            {/* Items Table */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase">
+                  <tr>
+                    <th className="p-3">Product Name</th>
+                    <th className="p-3 text-center">Qty</th>
+                    <th className="p-3 text-right">Unit Price</th>
+                    <th className="p-3 text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {activeInvoiceOrder.items.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="p-3 font-medium text-slate-900">{item.productName}</td>
+                      <td className="p-3 text-center font-mono font-bold">{item.quantity}</td>
+                      <td className="p-3 text-right font-mono text-slate-600">
+                        ₹{item.price.toLocaleString('en-IN')}
+                      </td>
+                      <td className="p-3 text-right font-bold text-slate-900 font-mono">
+                        ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 text-[11px]">
-                    {activeInvoiceOrder.items.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="p-2.5 font-medium text-gray-900">
-                          {item.productName}
-                        </td>
-                        <td className="p-2.5 text-center font-mono">{item.quantity}</td>
-                        <td className="p-2.5 text-right">₹{item.price.toLocaleString()}</td>
-                        <td className="p-2.5 text-right font-bold text-gray-900">
-                          ₹{(item.price * item.quantity).toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-              {/* Total Calculation */}
-              <div className="space-y-1 text-right pt-2">
-                <div className="flex justify-between text-gray-500 text-xs">
-                  <span>Subtotal:</span>
-                  <span>₹{activeInvoiceOrder.totalAmount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-gray-500 text-xs">
-                  <span>GST (Included 18%):</span>
-                  <span>₹{Math.round(activeInvoiceOrder.totalAmount * 0.18).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-gray-500 text-xs">
-                  <span>Delivery Charges:</span>
-                  <span className="text-emerald-600 font-semibold">FREE</span>
-                </div>
-                <div className="flex justify-between font-bold text-sm text-gray-900 border-t border-gray-200 pt-2 mt-1">
-                  <span>Grand Total:</span>
-                  <span className="text-[#1552B3]">
-                    ₹{activeInvoiceOrder.totalAmount.toLocaleString()}
-                  </span>
-                </div>
+            {/* Financial Summary */}
+            <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 text-xs text-right">
+              <div className="flex justify-between text-slate-500">
+                <span>Subtotal:</span>
+                <span className="font-mono">
+                  ₹{activeInvoiceOrder.totalAmount.toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-500">
+                <span>GST (Included):</span>
+                <span className="font-mono">
+                  ₹{Math.round(activeInvoiceOrder.totalAmount * 0.18).toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-500">
+                <span>Shipping / Delivery:</span>
+                <span className="text-emerald-700 font-semibold">FREE</span>
+              </div>
+              <div className="flex justify-between font-bold text-base text-slate-900 border-t border-slate-200 pt-2 mt-1">
+                <span>Grand Total:</span>
+                <span className="text-[#1552B3] font-mono">
+                  ₹{activeInvoiceOrder.totalAmount.toLocaleString('en-IN')}
+                </span>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-              <button
-                onClick={() => alert('Printing receipt preview...')}
-                className="inline-flex items-center space-x-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print PDF</span>
-              </button>
-              <button
-                onClick={() => setActiveInvoiceOrder(null)}
-                className="px-4 py-1.5 bg-[#1552B3] text-white text-xs font-semibold rounded-lg hover:bg-blue-800"
-              >
+            <div className="pt-2 flex items-center justify-between">
+              <ActionButton variant="outline" icon={Printer} onClick={handlePrintInvoice}>
+                Print Invoice
+              </ActionButton>
+              <ActionButton variant="primary" onClick={() => setActiveInvoiceOrder(null)}>
                 Done
-              </button>
+              </ActionButton>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </AdminLayout>
   );
 };
+
 export default OrderManagement;

@@ -42,17 +42,20 @@ export async function getProductSuggestions(req: Request, res: Response): Promis
     const brand = (req.query.brand as string) || '';
     const mobileType = (req.query.mobileType as string) || '';
 
-    if (!q || q.trim().length < 2) {
+    if (!q || !q.trim()) {
       return res.json({
         success: true,
         suggestions: [],
       });
     }
 
+    const limitParam = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+
     const suggestions = await getSmartphoneSuggestions({
       query: q,
       brand,
       mobileType,
+      limit: Number.isFinite(limitParam) ? limitParam : undefined,
     });
 
     return res.json({

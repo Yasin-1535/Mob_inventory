@@ -14,6 +14,7 @@ import {
 import AdminLayout from '../../components/AdminLayout';
 import { useStore } from '../../context/StoreContext';
 import { Customer } from '../../data/mockCustomers';
+import { ActionButton, ActionMenu, StatusBadge } from '../../components/ui';
 
 export const CustomerManagement: React.FC = () => {
   const { customers, orders, updateCustomerStatus } = useStore();
@@ -157,13 +158,36 @@ export const CustomerManagement: React.FC = () => {
                       </select>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => setSelectedCustomer(customer)}
-                        className="p-1.5 text-gray-400 hover:text-[#1552B3] hover:bg-blue-50 rounded-lg transition-colors"
-                        title="View Orders"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end space-x-1.5">
+                        <ActionButton
+                          variant="ghost"
+                          size="xs"
+                          icon={Eye}
+                          onClick={() => setSelectedCustomer(customer)}
+                        >
+                          Orders
+                        </ActionButton>
+                        <ActionMenu
+                          size="xs"
+                          actions={[
+                            {
+                              label: 'View Orders',
+                              icon: Eye,
+                              onClick: () => setSelectedCustomer(customer),
+                            },
+                            {
+                              label: customer.status === 'Active' ? 'Deactivate Customer' : 'Activate Customer',
+                              icon: UserCheck,
+                              variant: customer.status === 'Active' ? 'danger' : 'default',
+                              onClick: () =>
+                                updateCustomerStatus(
+                                  customer.id,
+                                  customer.status === 'Active' ? 'Inactive' : 'Active'
+                                ),
+                            },
+                          ]}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -240,12 +264,13 @@ export const CustomerManagement: React.FC = () => {
             </div>
 
             <div className="pt-3 border-t border-gray-100 flex justify-end">
-              <button
+              <ActionButton
+                variant="outline"
+                size="sm"
                 onClick={() => setSelectedCustomer(null)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg"
               >
                 Close
-              </button>
+              </ActionButton>
             </div>
           </div>
         </div>

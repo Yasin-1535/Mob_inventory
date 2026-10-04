@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { Order, IOrderItem } from '../models/Order';
 import { Product } from '../models/Product';
 import { authenticateJWT, requireRole, AuthenticatedRequest } from '../middleware/auth';
+import { safeRegex } from '../utils/sanitize';
 
 const router = Router();
 
@@ -21,8 +22,8 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res: Response
 
     if (search) {
       filter.$or = [
-        { orderNumber: { $regex: search, $options: 'i' } },
-        { customerName: { $regex: search, $options: 'i' } },
+        { orderNumber: safeRegex(search as string) },
+        { customerName: safeRegex(search as string) },
       ];
     }
 
